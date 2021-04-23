@@ -1,0 +1,56 @@
+# Specify fixed parameters
+n_leaves <-500    # observed, max 558=671-113
+sampling_prob <- n_leaves/(671-113)
+n_sites <- 10    # barcode length
+
+# Generate leaf labels
+for (i in 1:n_leaves) { taxa[i] = taxon("Cell"+i) }
+
+
+# Iterate the data generation process to generate samples of the data
+n_samples = 10
+
+for (i in 1:n_samples)
+{
+	# Specify parameters for the birth death model
+	root_age_rate <- 0.1
+	root_age_mean <- 800
+	root_age_shape <- root_age_mean*root_age_rate
+	root_age[i] ~ dnGamma(shape=root_age_shape, rate=root_age_rate)
+
+	birth_rate_sd <- 0.587405
+	birth_rate_mean := ln(((671)/2)/root_age[i]) - 0.5*birth_rate_sd^2
+	birth_rate[i] ~ dnLognormal(mean=birth_rate_mean, sd=birth_rate_sd)
+
+	death_rate_sd <- 0.587405
+	death_rate_mean := ln(113/root_age[i]) - 0.5*death_rate_sd^2
+	death_rate[i] ~ dnLognormal(mean=death_rate_mean, sd=death_rate_sd)
+
+	# Create a node representing the time tree (topology and divergence time)
+	timetree[i] ~ dnBDP(lambda=birth_rate[i], mu=death_rate[i], rho=sampling_prob, rootAge=root_age[i], samplingStrategy="uniform", condition="nTaxa", taxa=taxa)
+
+	# Write tree to file
+	filename = "output/timetree"+i+".nex"
+	writeNexus(filename=filename, timetree[i])
+
+	# Specify paramters for the mutation/nucelotide substitution model
+	# GTR Parameters
+	er_prior <- v(1,1,1,1,1,1) 
+	er ~ dnDirichlet(er_prior)
+	pi_prior <- v(1,1,1,1)  
+	pi ~ dnDirichlet(pi_prior)
+	Q[i] := fnGTR(er,pi)
+
+	clock_rate_sd <- 0.587405*4
+	clock_rate_mean := ln(0.1) - 0.5*birth_rate_sd^2
+	clock_rate[i] ~ dnLognormal(mean=clock_rate_mean, sd=clock_rate_sd)    # mutation rate
+
+	# Simulate data (observed barcodes) using the prior generative model we have made above
+	b[i] ~ dnPhyloCTMC(tree=timetree[i], Q=Q[i], branchRates=clock_rate[i], nSites=n_sites, type="DNA")
+	filename = "output/b"+i+".nex"
+	writeNexus(filename=filename, b[i])
+}
+
+
+
+
