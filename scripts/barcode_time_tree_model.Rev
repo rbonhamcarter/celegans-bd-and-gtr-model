@@ -19,7 +19,7 @@ for (i in 1:n_samples)
 	root_age[i] ~ dnGamma(shape=root_age_shape, rate=root_age_rate)
 
 	birth_rate_sd <- 0.587405
-	birth_rate_mean := ln(((671)/2)/root_age[i]) - 0.5*birth_rate_sd^2
+	birth_rate_mean := ln(670/root_age[i]) - 0.5*birth_rate_sd^2   # number of divisions == number of internal nodes = 671 - 1 = 670
 	birth_rate[i] ~ dnLognormal(mean=birth_rate_mean, sd=birth_rate_sd)
 
 	death_rate_sd <- 0.587405
